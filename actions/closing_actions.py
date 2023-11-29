@@ -3,7 +3,7 @@ from typing import Text, Dict, List, Any
 from rasa_sdk import Tracker, FormValidationAction
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.forms import Action
-from rasa_sdk.events import SlotSet, SessionStarted
+from rasa_sdk.events import SlotSet, SessionStarted, ActiveLoop, UserUttered
 from rasa_sdk.types import DomainDict
 
 
@@ -35,6 +35,15 @@ class ValidateFormClosing(FormValidationAction):
         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict
     ) -> List[Dict[Text, Any]]:
         requested_slot = tracker.get_slot("requested_slot")
+
+        if requested_slot is not None and tracker.get_slot(requested_slot) is None:
+            import pprint
+            #pprint.pprint(f"last event {tracker.get_last_event_for('user')}")
+            real_last = tracker.get_last_event_for("user")
+            last_request = UserUttered(real_last["text"], real_last["parse_data"])
+            # pprint.pprint(last_request)
+            # return [ActiveLoop(None)]
+            return [SlotSet("requested_slot", None)]
 
         if requested_slot == "closing_got_help":
             closing_got_help = tracker.get_slot("closing_got_help")
@@ -104,6 +113,19 @@ class ExecuteFormClosing(Action):
         ]
 
 
+class ValidateFormClosingAnythingElse(FormValidationAction):
+    def name(self) -> Text:
+        return "validate_form_closing_anything_else"
+
+    async def run(
+            self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict
+    ) -> List[Dict[Text, Any]]:
+        requested_slot = tracker.get_slot("requested_slot")
+
+        if requested_slot is not None and tracker.get_slot(requested_slot) is None:
+            return [ActiveLoop(None), SessionStarted()]
+
+
 class ExecuteFormClosingAnythingElse(Action):
     def name(self) -> Text:
         return "execute_form_closing_anything_else"
@@ -119,9 +141,7 @@ class ExecuteFormClosingAnythingElse(Action):
         else:
             return []
 
-        return [SlotSet(key, None) for key in ["closing_anything_else"]] + [
-            SessionStarted()
-        ]
+        return [SessionStarted()]
 
 
 class ActionSkipGotHelp(Action):

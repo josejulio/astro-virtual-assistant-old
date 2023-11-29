@@ -10,6 +10,9 @@ rules:
   - rule: Finished feedback
     condition:
       - active_loop: form_closing
+      - slot_was_set:
+          - closing_got_help: True
+          - closing_got_help: False
     steps:
       - action: form_closing
       - active_loop: null
